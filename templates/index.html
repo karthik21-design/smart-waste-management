@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Smart Waste Management</title>
+  <style>
+    body { font-family: Arial; background: #1a1a2e; color: white; margin: 0; padding: 20px; }
+    nav { background: #16213e; padding: 15px; margin-bottom: 20px; border-radius: 8px; }
+    nav h2 { margin: 0; color: #00b4d8; }
+    .stats { display: flex; gap: 15px; margin-bottom: 20px; }
+    .card { background: #16213e; padding: 20px; border-radius: 8px; flex: 1; text-align: center; }
+    .card h3 { margin: 0; font-size: 2em; color: #00b4d8; }
+    .bins { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; }
+    .bin-card { background: #16213e; padding: 15px; border-radius: 8px; }
+    .bin-card h3 { margin: 0 0 10px 0; }
+    .bar-bg { background: #333; border-radius: 5px; height: 20px; margin: 10px 0; }
+    .bar-fill { height: 20px; border-radius: 5px; transition: width 0.5s; display: flex; align-items: center; padding-left: 8px; font-size: 12px; }
+    .safe { background: #2d6a4f; }
+    .warning { background: #e9c46a; color: black; }
+    .danger { background: #e63946; }
+    button { background: #00b4d8; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; margin: 10px 0; }
+    button:hover { background: #0096c7; }
+  </style>
+</head>
+<body>
+  <nav>
+    <h2>🗑️ Smart Waste Management</h2>
+  </nav>
+
+  <div class="stats">
+    <div class="card">
+      <h3 id="total">0</h3>
+      <p>Total Bins</p>
+    </div>
+    <div class="card">
+      <h3 id="full" style="color:#e63946">0</h3>
+      <p>Need Collection</p>
+    </div>
+    <div class="card">
+      <h3 id="ok" style="color:#2d6a4f">0</h3>
+      <p>OK Bins</p>
+    </div>
+  </div>
+
+ <button onclick="loadBins()">🔄 Refresh</button>
+<button onclick="simulate()" style="background:#e63946">⚡ Simulate Sensors</button>
+
+  <div class="bins" id="bins"></div>
+
+  <script>
+    async function simulate() {
+    await fetch('/simulate');
+    loadBins();
+}
+    async function loadBins() {
+      const res = await fetch('/bins');
+      const bins = await res.json();
+
+      document.getElementById('total').textContent = bins.length;
+      document.getElementById('full').textContent = bins.filter(b => (b.fill_level || 0) >= 80).length;
+      document.getElementById('ok').textContent = bins.filter(b => (b.fill_level || 0) < 80).length;
+
+      document.getElementById('bins').innerHTML = bins.map(b => {
+        const level = b.fill_level || 0;
+        const color = level >= 80 ? 'danger' : level >= 50 ? 'warning' : 'safe';
+        return `
+          <div class="bin-card">
+            <h3>${b.bin_name}</h3>
+            <p>📍 ${b.location}</p>
+            <p>🗑️ ${b.bin_type}</p>
+            <div class="bar-bg">
+              <div class="bar-fill ${color}" style="width:${level}%">${level}%</div>
+            </div>
+          </div>`;
+      }).join('');
+    }
+
+    loadBins();
+    setInterval(loadBins, 10000);
+  </script>
+</body>
+</html>

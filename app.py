@@ -1,45 +1,34 @@
 from flask import Flask
-import mysql.connector
+from flask import Flask, render_template, jsonify
+from flask_mysqldb import MySQL
+from config import Config
 
-# Create a new instance of the Flask class
 app = Flask(__name__)
+app.config.from_object(Config)
 
-# Define a route for the root URL
-@app.route("/")
+mysql = MySQL(app)
+
+from routes.bins import bins_blueprint
+app.register_blueprint(bins_blueprint)
+
+@app.route('/')
 def index():
-    return "Welcome to Smart Waste Management App"
+    return render_template('index.html')
+import random
 
-# Function to connect to database and retrieve data
-def get_data_from_database(bin_id):
-    try:
-        # Establish connection to database
-        cnx = mysql.connector.connect(
-            user='username',
-            password='password',
-            host='127.0.0.1',
-            database='smart_waste_management'
+@app.route('/simulate')
+def simulate():
+    cur = mysql.connection.cursor()
+    cur.execute("SELECT bin_id FROM bins")
+    bins = cur.fetchall()
+    for (bin_id,) in bins:
+        level = random.randint(10, 100)
+        cur.execute(
+            "UPDATE bins SET fill_level=%s WHERE bin_id=%s",
+            (level, bin_id)
         )
-        
-        # Create a cursor object
-        cursor = cnx.cursor()
-        
-        # SQL query to retrieve data from bins table
-        query = "SELECT * FROM bins WHERE bin_id = %s"
-        cursor.execute(query, (bin_id,))
-        
-        # Fetch the result
-        result = cursor.fetchone()
-        
-        # Close the cursor and connection
-        cursor.close()
-        cnx.close()
-        
-        return result
-    
-    except mysql.connector.Error as err:
-        print("Error: {}".format(err))
-        return None
-
-# Run the application if this script is executed directly
-if __name__ == "__main__":
+    mysql.connection.commit()
+    cur.close()
+    return jsonify({'status': 'simulated'})
+if __name__ == '__main__':
     app.run(debug=True)
