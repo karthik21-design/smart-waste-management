@@ -2,6 +2,7 @@
 <html>
 <head>
   <title>Smart Waste Management</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     body { font-family: Arial; background: #1a1a2e; color: white; margin: 0; padding: 20px; }
     nav { background: #16213e; padding: 15px; margin-bottom: 20px; border-radius: 8px; }
@@ -43,10 +44,123 @@
 
  <button onclick="loadBins()">🔄 Refresh</button>
 <button onclick="simulate()" style="background:#e63946">⚡ Simulate Sensors</button>
-
+<div id="alerts-section" style="margin: 20px 0;">
+    <h2 style="color:#e63946">🔔 Alerts — Bins Need Collection</h2>
+    <div id="alerts"></div>
+</div>
+<div style="background:#16213e; padding:20px; border-radius:8px; margin:20px 0;">
+    <h2 style="color:#00b4d8">📊 Bin Fill Levels</h2>
+    <canvas id="fillChart" height="100"></canvas>
+</div>
   <div class="bins" id="bins"></div>
 
   <script>
+    async function sendChat() {
+    const input = document.getElementById('chat-input');
+    const messages = document.getElementById('chat-messages');
+    const question = input.value.trim();
+    
+    if(!question) return;
+    
+    messages.innerHTML += `
+        <div style="text-align:right; margin:5px 0;">
+            <span style="background:#00b4d8; padding:5px 10px; border-radius:10px;">
+                ${question}
+            </span>
+        </div>`;
+    
+    input.value = '';
+    messages.innerHTML += `<div id="typing">🤖 Thinking...</div>`;
+    messages.scrollTop = messages.scrollHeight;
+    
+    const res = await fetch('/chat', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({question})
+    });
+    
+    const data = await res.json();
+    document.getElementById('typing').remove();
+    
+    messages.innerHTML += `
+        <div style="text-align:left; margin:5px 0;">
+            <span style="background:#16213e; border:1px solid #00b4d8; padding:5px 10px; border-radius:10px;">
+                🤖 ${data.answer}
+            </span>
+        </div>`;
+    messages.scrollTop = messages.scrollHeight;
+}
+
+document.getElementById('chat-input').addEventListener('keypress', function(e) {
+    if(e.key === 'Enter') sendChat();
+});
+    let fillChart = null;
+
+async function loadChart() {
+    const res = await fetch('/bins');
+    const bins = await res.json();
+    
+    const labels = bins.map(b => b.bin_name);
+    const data = bins.map(b => b.fill_level || 0);
+    const colors = data.map(d => 
+        d >= 80 ? '#e63946' : 
+        d >= 50 ? '#e9c46a' : '#2d6a4f'
+    );
+
+    if(fillChart) {
+        fillChart.data.datasets[0].data = data;
+        fillChart.data.datasets[0].backgroundColor = colors;
+        fillChart.update();
+        return;
+    }
+
+    const ctx = document.getElementById('fillChart').getContext('2d');
+    fillChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Fill Level %',
+                data: data,
+                backgroundColor: colors,
+                borderRadius: 5
+            }]
+        },
+        options: {
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    max: 100,
+                    ticks: { color: 'white' },
+                    grid: { color: '#333' }
+                },
+                x: {
+                    ticks: { color: 'white' },
+                    grid: { color: '#333' }
+                }
+            },
+            plugins: {
+                legend: { labels: { color: 'white' } }
+            }
+        }
+    });
+}
+    async function loadAlerts() {
+    const res = await fetch('/alerts');
+    const alerts = await res.json();
+    
+    if(alerts.length === 0) {
+        document.getElementById('alerts').innerHTML = 
+            '<p style="color:#2d6a4f">✅ All bins are OK!</p>';
+        return;
+    }
+    
+    document.getElementById('alerts').innerHTML = alerts.map(a => `
+        <div style="background:#e63946; padding:10px; border-radius:8px; margin:5px 0;">
+            🚨 <b>${a.bin_name}</b> at ${a.location} is <b>${a.fill_level}%</b> full — needs collection!
+        </div>
+    `).join('');
+}
     async function simulate() {
     await fetch('/simulate');
     loadBins();
@@ -73,9 +187,23 @@
           </div>`;
       }).join('');
     }
-
+    loadChart();
+  setInterval(loadChart, 10000);
+  loadAlerts();
+  setInterval(loadAlerts, 10000);
     loadBins();
     setInterval(loadBins, 10000);
   </script>
+ 
+
+  <div style="background:#16213e; padding:20px; border-radius:8px; margin:20px 0;">
+    <h2 style="color:#00b4d8">🤖 AI Waste Assistant</h2>
+    <div id="chat-messages" style="height:200px; overflow-y:auto; margin-bottom:10px; padding:10px; background:#0d1117; border-radius:8px;"></div>
+    <div style="display:flex; gap:10px;">
+        <input id="chat-input" type="text" placeholder="Ask about bins..." 
+            style="flex:1; padding:10px; border-radius:5px; border:none; background:#333; color:white;">
+        <button onclick="sendChat()">Send 🚀</button>
+    </div>
+  </div>
 </body>
 </html>
