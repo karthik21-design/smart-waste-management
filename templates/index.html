@@ -18,8 +18,14 @@
     .safe { background: #2d6a4f; }
     .warning { background: #e9c46a; color: black; }
     .danger { background: #e63946; }
-    button { background: #00b4d8; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; margin: 10px 0; }
+    button { background: #00b4d8; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; margin: 10px 5px; }
     button:hover { background: #0096c7; }
+    .section { background: #16213e; padding: 20px; border-radius: 8px; margin: 20px 0; }
+    .alert-item { background: #e63946; padding: 10px; border-radius: 8px; margin: 5px 0; }
+    .predict-item { background: #0d1117; padding: 10px; border-radius: 8px; margin: 5px 0; display: flex; justify-content: space-between; }
+    #chat-messages { height: 200px; overflow-y: auto; margin-bottom: 10px; padding: 10px; background: #0d1117; border-radius: 8px; }
+    #chat-input { flex: 1; padding: 10px; border-radius: 5px; border: none; background: #333; color: white; }
+    .chat-row { display: flex; gap: 10px; }
   </style>
 </head>
 <body>
@@ -27,6 +33,7 @@
     <h2>🗑️ Smart Waste Management</h2>
   </nav>
 
+  <!-- Stats -->
   <div class="stats">
     <div class="card">
       <h3 id="total">0</h3>
@@ -42,129 +49,53 @@
     </div>
   </div>
 
- <button onclick="loadBins()">🔄 Refresh</button>
-<button onclick="simulate()" style="background:#e63946">⚡ Simulate Sensors</button>
-<div id="alerts-section" style="margin: 20px 0;">
-    <h2 style="color:#e63946">🔔 Alerts — Bins Need Collection</h2>
-    <div id="alerts"></div>
-</div>
-<div style="background:#16213e; padding:20px; border-radius:8px; margin:20px 0;">
-    <h2 style="color:#00b4d8">📊 Bin Fill Levels</h2>
-    <canvas id="fillChart" height="100"></canvas>
-</div>
+  <!-- Buttons -->
+  <button onclick="loadBins()">🔄 Refresh</button>
+  <button onclick="simulate()" style="background:#e63946">⚡ Simulate Sensors</button>
+
+  <!-- Bins Grid -->
   <div class="bins" id="bins"></div>
 
+  <!-- Alerts -->
+  <div class="section">
+    <h2 style="color:#e63946">🔔 Alerts — Bins Need Collection</h2>
+    <div id="alerts"></div>
+  </div>
+
+  <!-- Chart -->
+  <div class="section">
+    <h2 style="color:#00b4d8">📊 Fill Level Chart</h2>
+    <canvas id="fillChart" height="100"></canvas>
+  </div>
+
+  <!-- ML Predictions -->
+  <div class="section">
+    <h2 style="color:#00b4d8">📈 ML Fill Level Predictions</h2>
+    <p style="color:#888">Click Simulate 5-6 times to generate training data!</p>
+    <div id="predictions"></div>
+  </div>
+
+  <!-- AI Chat -->
+  <div class="section">
+    <h2 style="color:#00b4d8">🤖 AI Waste Assistant</h2>
+    <div id="chat-messages"></div>
+    <div class="chat-row">
+      <input id="chat-input" type="text" placeholder="Ask about bins...">
+      <button onclick="sendChat()">Send 🚀</button>
+    </div>
+  </div>
+
   <script>
-    async function sendChat() {
-    const input = document.getElementById('chat-input');
-    const messages = document.getElementById('chat-messages');
-    const question = input.value.trim();
-    
-    if(!question) return;
-    
-    messages.innerHTML += `
-        <div style="text-align:right; margin:5px 0;">
-            <span style="background:#00b4d8; padding:5px 10px; border-radius:10px;">
-                ${question}
-            </span>
-        </div>`;
-    
-    input.value = '';
-    messages.innerHTML += `<div id="typing">🤖 Thinking...</div>`;
-    messages.scrollTop = messages.scrollHeight;
-    
-    const res = await fetch('/chat', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({question})
-    });
-    
-    const data = await res.json();
-    document.getElementById('typing').remove();
-    
-    messages.innerHTML += `
-        <div style="text-align:left; margin:5px 0;">
-            <span style="background:#16213e; border:1px solid #00b4d8; padding:5px 10px; border-radius:10px;">
-                🤖 ${data.answer}
-            </span>
-        </div>`;
-    messages.scrollTop = messages.scrollHeight;
-}
-
-document.getElementById('chat-input').addEventListener('keypress', function(e) {
-    if(e.key === 'Enter') sendChat();
-});
-    let fillChart = null;
-
-async function loadChart() {
-    const res = await fetch('/bins');
-    const bins = await res.json();
-    
-    const labels = bins.map(b => b.bin_name);
-    const data = bins.map(b => b.fill_level || 0);
-    const colors = data.map(d => 
-        d >= 80 ? '#e63946' : 
-        d >= 50 ? '#e9c46a' : '#2d6a4f'
-    );
-
-    if(fillChart) {
-        fillChart.data.datasets[0].data = data;
-        fillChart.data.datasets[0].backgroundColor = colors;
-        fillChart.update();
-        return;
-    }
-
-    const ctx = document.getElementById('fillChart').getContext('2d');
-    fillChart = new Chart(ctx, {
-        type: 'bar',
-        data: {
-            labels: labels,
-            datasets: [{
-                label: 'Fill Level %',
-                data: data,
-                backgroundColor: colors,
-                borderRadius: 5
-            }]
-        },
-        options: {
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    max: 100,
-                    ticks: { color: 'white' },
-                    grid: { color: '#333' }
-                },
-                x: {
-                    ticks: { color: 'white' },
-                    grid: { color: '#333' }
-                }
-            },
-            plugins: {
-                legend: { labels: { color: 'white' } }
-            }
-        }
-    });
-}
-    async function loadAlerts() {
-    const res = await fetch('/alerts');
-    const alerts = await res.json();
-    
-    if(alerts.length === 0) {
-        document.getElementById('alerts').innerHTML = 
-            '<p style="color:#2d6a4f">✅ All bins are OK!</p>';
-        return;
-    }
-    
-    document.getElementById('alerts').innerHTML = alerts.map(a => `
-        <div style="background:#e63946; padding:10px; border-radius:8px; margin:5px 0;">
-            🚨 <b>${a.bin_name}</b> at ${a.location} is <b>${a.fill_level}%</b> full — needs collection!
-        </div>
-    `).join('');
-}
+    // Simulate
     async function simulate() {
-    await fetch('/simulate');
-    loadBins();
-}
+      await fetch('/simulate');
+      loadBins();
+      loadAlerts();
+      loadChart();
+      loadPredictions();
+    }
+
+    // Load Bins
     async function loadBins() {
       const res = await fetch('/bins');
       const bins = await res.json();
@@ -187,23 +118,153 @@ async function loadChart() {
           </div>`;
       }).join('');
     }
-    loadChart();
-  setInterval(loadChart, 10000);
-  loadAlerts();
-  setInterval(loadAlerts, 10000);
-    loadBins();
-    setInterval(loadBins, 10000);
-  </script>
- 
 
-  <div style="background:#16213e; padding:20px; border-radius:8px; margin:20px 0;">
-    <h2 style="color:#00b4d8">🤖 AI Waste Assistant</h2>
-    <div id="chat-messages" style="height:200px; overflow-y:auto; margin-bottom:10px; padding:10px; background:#0d1117; border-radius:8px;"></div>
-    <div style="display:flex; gap:10px;">
-        <input id="chat-input" type="text" placeholder="Ask about bins..." 
-            style="flex:1; padding:10px; border-radius:5px; border:none; background:#333; color:white;">
-        <button onclick="sendChat()">Send 🚀</button>
-    </div>
-  </div>
+    // Load Alerts
+    async function loadAlerts() {
+      const res = await fetch('/alerts');
+      const alerts = await res.json();
+
+      if(alerts.length === 0) {
+        document.getElementById('alerts').innerHTML =
+          '<p style="color:#2d6a4f">✅ All bins are OK!</p>';
+        return;
+      }
+
+      document.getElementById('alerts').innerHTML = alerts.map(a => `
+        <div class="alert-item">
+          🚨 <b>${a.bin_name}</b> at ${a.location} is <b>${a.fill_level}%</b> full!
+        </div>
+      `).join('');
+    }
+
+    // Load Chart
+    let fillChart = null;
+    async function loadChart() {
+      const res = await fetch('/bins');
+      const bins = await res.json();
+
+      const labels = bins.map(b => b.bin_name);
+      const data = bins.map(b => b.fill_level || 0);
+      const colors = data.map(d =>
+        d >= 80 ? '#e63946' : d >= 50 ? '#e9c46a' : '#2d6a4f'
+      );
+
+      if(fillChart) {
+        fillChart.data.datasets[0].data = data;
+        fillChart.data.datasets[0].backgroundColor = colors;
+        fillChart.update();
+        return;
+      }
+
+      const ctx = document.getElementById('fillChart').getContext('2d');
+      fillChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: labels,
+          datasets: [{
+            label: 'Fill Level %',
+            data: data,
+            backgroundColor: colors,
+            borderRadius: 5
+          }]
+        },
+        options: {
+          scales: {
+            y: {
+              beginAtZero: true,
+              max: 100,
+              ticks: { color: 'white' },
+              grid: { color: '#333' }
+            },
+            x: {
+              ticks: { color: 'white' },
+              grid: { color: '#333' }
+            }
+          },
+          plugins: {
+            legend: { labels: { color: 'white' } }
+          }
+        }
+      });
+    }
+
+    // ML Predictions
+    async function loadPredictions() {
+      const res = await fetch('/bins');
+      const bins = await res.json();
+
+      const predictions = await Promise.all(
+        bins.map(b =>
+          fetch(`/predict/${b.bin_id}`)
+          .then(r => r.json())
+          .then(p => ({...b, ...p}))
+        )
+      );
+
+      document.getElementById('predictions').innerHTML =
+        predictions.map(p => `
+          <div class="predict-item">
+            <span><b>${p.bin_name}</b> — Now: ${p.current_level || 0}%</span>
+            <span>Next Hour:
+              <b style="color:${(p.predicted_next||0) >= 80 ? '#e63946' : '#2d6a4f'}">
+                ${p.predicted_next !== null ? p.predicted_next + '%' : 'Need more data'}
+              </b>
+              ${p.will_be_full ? '🚨 Will be FULL!' : '✅ OK'}
+            </span>
+          </div>
+        `).join('');
+    }
+
+    // AI Chat
+    async function sendChat() {
+      const input = document.getElementById('chat-input');
+      const messages = document.getElementById('chat-messages');
+      const question = input.value.trim();
+      if(!question) return;
+
+      messages.innerHTML += `
+        <div style="text-align:right; margin:5px 0;">
+          <span style="background:#00b4d8; padding:5px 10px; border-radius:10px;">${question}</span>
+        </div>`;
+      input.value = '';
+      messages.innerHTML += `<div id="typing">🤖 Thinking...</div>`;
+      messages.scrollTop = messages.scrollHeight;
+
+      const res = await fetch('/chat', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({question})
+      });
+
+      const data = await res.json();
+      document.getElementById('typing').remove();
+
+      messages.innerHTML += `
+        <div style="text-align:left; margin:5px 0;">
+          <span style="background:#16213e; border:1px solid #00b4d8; padding:5px 10px; border-radius:10px;">
+            🤖 ${data.answer}
+          </span>
+        </div>`;
+      messages.scrollTop = messages.scrollHeight;
+    }
+
+    document.getElementById('chat-input').addEventListener('keypress', function(e) {
+      if(e.key === 'Enter') sendChat();
+    });
+
+    // Initialize
+    loadBins();
+    loadAlerts();
+    loadChart();
+    loadPredictions();
+
+    // Auto refresh
+    setInterval(() => {
+      loadBins();
+      loadAlerts();
+      loadChart();
+      loadPredictions();
+    }, 10000);
+  </script>
 </body>
 </html>
