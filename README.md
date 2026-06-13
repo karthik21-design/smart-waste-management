@@ -1,3 +1,53 @@
+# Smart Waste Management System 🗑️
+
+A complete AI/ML powered smart waste management system.
+
+## Features
+- 📊 Live bin fill level dashboard
+- ⚡ IoT sensor simulation
+- 🔔 Alert system for full bins
+- 📈 ML fill level predictions
+- 🤖 AI chat assistant (Ollama)
+- 🖼️ AI waste image classifier
+- 📊 Bar chart visualization
+
+## Tech Stack
+- Frontend: HTML/CSS/JavaScript
+- Backend: Python Flask
+- Database: MySQL (Docker)
+- ML: Scikit-learn Linear Regression
+- AI: TensorFlow CNN (Waste Classifier)
+- AI Chat: Ollama llama3.2:3b
+- Container: Docker
+
+## Setup Instructions
+1. Install Docker Desktop
+2. Run: `docker-compose up -d`
+3. Install requirements: `pip install -r requirements.txt`
+4. Run: `python app.py`
+5. Open: `http://127.0.0.1:5000`
+
+## Train Waste Classifier
+1. Download TrashNet dataset from Kaggle
+2. Extract to `dataset/` folder
+3. Run: `python models/train_model.py`
+
+## Project Structure
+smart-waste/
+├── app.py
+├── config.py
+├── requirements.txt
+├── docker-compose.yml
+├── models/
+│   └── train_model.py
+├── routes/
+│   └── bins.py
+├── templates/
+│   ├── index.html
+│   └── classify.html
+└── database/
+    └── schema.sql
+    
 Smart Waste Management System
 
 A comprehensive, open-source platform designed to optimize waste collection processes, reduce waste disposal costs, and promote sustainable waste management practices.
